@@ -1,25 +1,98 @@
 package main
 
 import (
-	"fmt"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
+	_ "github.com/iancoleman/strcase"
+	"github.com/jmoiron/sqlx"
+	"log"
+	"net/http"
 )
 
-//TIP To run your code, right-click the code and select <b>Run</b>. Alternatively, click
-// the <icon src="AllIcons.Actions.Execute"/> icon in the gutter and select the <b>Run</b> menu item from here.
+var DB *sqlx.DB
 
 func main() {
-	//TIP Press <shortcut actionId="ShowIntentionActions"/> when your caret is at the underlined or highlighted text
-	// to see how GoLand suggests fixing it.
-	s := "gopher"
-	fmt.Println("Hello and welcome, %s!", s)
 
-	for i := 1; i <= 5; i++ {
-		//TIP You can try debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-		// for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>. To start your debugging session,
-		// right-click your code in the editor and select the <b>Debug</b> option.
-		fmt.Println("i =", 100/i)
-	}
+	DB = InitDB()
+
+	r := mux.NewRouter()
+	r.Use(headerMiddleware, requestMiddleware)
+
+	// Handle all preflight request
+	r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Access-Control-Request-Headers, Access-Control-Request-Method, Connection, Host, Origin, User-Agent, Referer, Cache-Control, X-header")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	})
+
+	// Endpoints
+	var (
+		endpoint        = "/"
+		endpointInteger = "/{id:[0-9]+}"
+	)
+
+	// Route Handlers
+	r.HandleFunc(endpoint, CreateItemRecord).Methods("POST")
+	r.HandleFunc(endpoint, ReadItemRecord).Methods("GET")
+	r.HandleFunc(endpointInteger, ReadItemRecord).Methods("GET")
+	r.HandleFunc(endpointInteger, UpdateItemRecord).Methods("PUT")
+	r.HandleFunc(endpointInteger, DeleteItemRecord).Methods("DELETE")
+
+	r.NotFoundHandler = http.HandlerFunc(HTTPNotFound)
+
+	log.Println("Starting Server")
+	log.Fatal(http.ListenAndServe(":10000", r))
+
 }
 
-//TIP See GoLand help at <a href="https://www.jetbrains.com/help/go/">jetbrains.com/help/go/</a>.
-// Also, you can try interactive lessons for GoLand by selecting 'Help | Learn IDE Features' from the main menu.
+func headerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		w.Header().Add("Content-Type", "application/json")
+		next.ServeHTTP(w, r)
+	})
+}
+
+func requestMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Print("Incoming request ", r.Method)
+		next.ServeHTTP(w, r)
+	})
+}
+
+func InitDB() *sqlx.DB {
+	db, err := sqlx.Connect("mysql", "root:password@tcp(127.0.0.1:3306)/shopping-list")
+	HandleError(err)
+	return db
+}
+
+/*
+
+{
+    "name": "Socks",
+    "url": "https://bit.ly/2WU5xgf",
+    "image_url": "https://bit.ly/2ZsyjGt",
+    "person": "Jasper",
+    "quantity": 2
+}
+
+{
+    "name": "Socks",
+    "url": "https%3A%2F%2Fbit.ly%2F2WU5xgf",
+    "image_url": "https%3A%2F%2Fbit.ly%2F2ZsyjGt",
+    "person": "Jasper",
+    "quantity": 2os
+}
+
+
+{
+    "name": "Socks",
+    "url": "url",
+    "image_url": "image_url",
+    "person": "Jasper",
+    "quantity": 2
+}
+
+*/
