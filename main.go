@@ -19,6 +19,7 @@ func main() {
 	r.Use(headerMiddleware, requestMiddleware)
 
 	// Handle all preflight request
+	// todo: are all methods needed?
 	r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
@@ -28,22 +29,26 @@ func main() {
 	})
 
 	// Endpoints
-	var (
-		endpoint        = "/"
-		endpointInteger = "/{id:[0-9]+}"
-	)
+	endpoints := [5]string{
+		"/",
+		"/nodes",
+		"/nodes/{id:[0-9]+}",
+		"/discussion",
+		"/discussion/{id:[0-9]+}",
+	}
 
 	// Route Handlers
-	r.HandleFunc(endpoint, CreateItemRecord).Methods("POST")
-	r.HandleFunc(endpoint, ReadItemRecord).Methods("GET")
-	r.HandleFunc(endpointInteger, ReadItemRecord).Methods("GET")
-	r.HandleFunc(endpointInteger, UpdateItemRecord).Methods("PUT")
-	r.HandleFunc(endpointInteger, DeleteItemRecord).Methods("DELETE")
+	r.HandleFunc(endpoints[0], About).Methods("GET")
+	r.HandleFunc(endpoints[1], ReadNodes).Methods("GET")
+	r.HandleFunc(endpoints[1], CreateNode).Methods("POST")
+	//r.HandleFunc(endpointInteger, ReadItemRecord).Methods("GET")
+	//r.HandleFunc(endpointInteger, UpdateItemRecord).Methods("PUT")
+	//r.HandleFunc(endpointInteger, DeleteItemRecord).Methods("DELETE")
 
 	r.NotFoundHandler = http.HandlerFunc(HTTPNotFound)
 
 	log.Println("Starting Server")
-	log.Fatal(http.ListenAndServe(":10000", r))
+	log.Fatal(http.ListenAndServe(":8080", r))
 
 }
 
@@ -63,36 +68,7 @@ func requestMiddleware(next http.Handler) http.Handler {
 }
 
 func InitDB() *sqlx.DB {
-	db, err := sqlx.Connect("mysql", "root:password@tcp(127.0.0.1:3306)/shopping-list")
+	db, err := sqlx.Connect("mysql", "root:password@tcp(localhost:3306)/atm") // "jdbc:sqlite:identifier.sqlite")
 	HandleError(err)
 	return db
 }
-
-/*
-
-{
-    "name": "Socks",
-    "url": "https://bit.ly/2WU5xgf",
-    "image_url": "https://bit.ly/2ZsyjGt",
-    "person": "Jasper",
-    "quantity": 2
-}
-
-{
-    "name": "Socks",
-    "url": "https%3A%2F%2Fbit.ly%2F2WU5xgf",
-    "image_url": "https%3A%2F%2Fbit.ly%2F2ZsyjGt",
-    "person": "Jasper",
-    "quantity": 2os
-}
-
-
-{
-    "name": "Socks",
-    "url": "url",
-    "image_url": "image_url",
-    "person": "Jasper",
-    "quantity": 2
-}
-
-*/

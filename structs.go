@@ -1,40 +1,22 @@
 package main
 
-/*
-	Item
-
-TODO: Rename to ItemDB
-*/
-type Item struct {
-	ID        int    `db:"id"`
-	Name      string `db:"name"`
-	URL       string `db:"url"`
-	ImageURL  string `db:"image_url"`
-	Person    string `db:"person"`
-	Quantity  int    `db:"quantity"`
-	Created   string `db:"created"`
-	Deleted   bool   `db:"deleted"`
-	Completed bool   `db:"completed"`
+type Node struct {
+	ID          int     `db:"id"`
+	Type        string  `db:"type"`
+	Title       string  `db:"title"`
+	Description string  `db:"description"`
+	Latitude    float64 `db:"lat"`
+	Longitude   float64 `db:"long"`
 }
 
-/* ItemJSON */
-type ItemJSON struct {
+type Discussion struct {
 	ID        int    `json:"id"`
-	Name      string `json:"name"`
-	URL       string `json:"url"`
-	ImageURL  string `json:"image_url"`
-	Person    string `json:"person"`
-	Quantity  int    `json:"quantity"`
+	MachineID int    `json:"name"`
 	Created   string `json:"created"`
-	Deleted   bool   `json:"deleted"`
-	Completed bool   `json:"completed"`
+	User      string `json:"user"`
+	Content   string `json:"content"`
 }
 
-/*
-	Response
-
-TODO: Split Response struct into Response and ErrorResponse
-*/
 type Response struct {
 	Response string `json:"response"`
 	Errno    int    `json:"errno"`

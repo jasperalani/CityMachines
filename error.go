@@ -5,7 +5,10 @@ import (
 	"net/http"
 )
 
-var err error
+var (
+	err      error
+	errorMsg = "Unable to process request"
+)
 
 func HandleError(err error) {
 	if err != nil {
@@ -13,23 +16,20 @@ func HandleError(err error) {
 	}
 }
 
-// Create HTTPNotFound error response
-// Need both w and r to be a valid http.HandlerFunc type
 func HTTPNotFound(w http.ResponseWriter, _ *http.Request) {
-	CreateErrorResponse(w, "err_httpnotfound")
+	CreateResponse(w, errorMsg, "502", "HTTP Not Found")
 }
 
 // Create IDNotFound error response
-func IDNotFound(w http.ResponseWriter, _ *http.Request) {
-	CreateErrorResponse(w, "err_idnotfound")
-}
+//func IDNotFound(w http.ResponseWriter, _ *http.Request) {
+//	CreateResponse(w, "Unable to process request", "301", "HTTP Not Found")
+//}
 
 // Create NoDataProvided error response
 //func NoDataProvided(w http.ResponseWriter, _ *http.Request) {
 //	CreateErrorResponse(w, "err_nodataprovided")
 //}
 
-// Create NoItems error response
 func NoItems(w http.ResponseWriter, _ *http.Request) {
-	CreateErrorResponse(w, "err_noitems")
+	CreateResponse(w, errorMsg, "1", "Search returned 0 results.")
 }

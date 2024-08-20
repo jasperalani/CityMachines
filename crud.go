@@ -3,21 +3,35 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	sq "github.com/Masterminds/squirrel"
-	"github.com/gorilla/mux"
-	"github.com/iancoleman/strcase"
-	"log"
 	"net/http"
-	"reflect"
 	"strconv"
 )
+import sq "github.com/Masterminds/squirrel"
 
-func CreateItemRecord(w http.ResponseWriter, request *http.Request) {
+func ReadNodes(w http.ResponseWriter, r *http.Request) {
+	var (
+		nodes       []Node
+		query       = sq.Select("*").From("nodes")
+		sql, _, err = query.ToSql()
+	)
+	HandleError(err)
+
+	err = DB.Select(&nodes, sql)
+	HandleError(err)
+	if len(nodes) == 0 {
+		NoItems(w, r)
+	} else {
+		err = json.NewEncoder(w).Encode(nodes)
+		HandleError(err)
+	}
+}
+
+func CreateNode(w http.ResponseWriter, request *http.Request) {
 
 	var (
-		item     ItemJSON
+		node     Node
 		id       int
-		name     string
+		type     string
 		quantity int
 		err      error
 	)
@@ -75,179 +89,179 @@ func CreateItemRecord(w http.ResponseWriter, request *http.Request) {
 
 }
 
-func ReadItemRecord(w http.ResponseWriter, r *http.Request) {
-
-	params := mux.Vars(r)
-
-	var (
-		item   Item
-		item_  ItemJSON
-		items  []Item
-		items_ []ItemJSON
-		query  string
-		scope  = len(params) > 0
-		err    error
-	)
-
-	query = StringEvaluator(scope,
-		"SELECT id, name, url, image_url, person, quantity, deleted, completed FROM items WHERE id = "+params["id"]+";",
-		"SELECT * FROM items WHERE deleted = 0 AND completed = 0;",
-	)
-
-	if scope {
-
-		err = DB.Get(&item, query)
-		HandleError(err)
-
-		if item.ID == 0 {
-			IDNotFound(w, r)
-			return
-		}
-
-		item_ = ItemJSON{
-			ID:        item.ID,
-			Name:      item.Name,
-			URL:       item.URL,
-			ImageURL:  item.ImageURL,
-			Person:    item.Person,
-			Quantity:  item.Quantity,
-			Deleted:   item.Deleted,
-			Completed: item.Completed,
-		}
-
-		err = json.NewEncoder(w).Encode(item_)
-		HandleError(err)
-
-	} else {
-
-		if !AnyItems() {
-			NoItems(w, r)
-			return
-		}
-
-		err = DB.Select(&items, query)
-		HandleError(err)
-
-		//log.Println(items)
-
-		for _, item := range items {
-			items_ = append(items_, ItemJSON{
-				ID:        item.ID,
-				Name:      item.Name,
-				URL:       item.URL,
-				ImageURL:  item.ImageURL,
-				Person:    item.Person,
-				Quantity:  item.Quantity,
-				Created:   item.Created,
-				Deleted:   item.Deleted,
-				Completed: item.Completed,
-			})
-		}
-
-		err = json.NewEncoder(w).Encode(items_)
-		HandleError(err)
-	}
-
-}
-
-func UpdateItemRecord(w http.ResponseWriter, r *http.Request) {
-
-	params := mux.Vars(r)
-
-	var (
-		id         float32
-		item       ItemJSON
-		fieldName  string
-		values     []interface{}
-		valueTypes reflect.Type
-		err        error
-		setValues  sq.UpdateBuilder
-	)
-
-	if !AnyItems() {
-		NoItems(w, r)
-		return
-	}
-
-	id = SelectID(params["id"])
-
-	if id == 0 {
-		IDNotFound(w, r)
-		return
-	}
-
-	err = json.NewDecoder(r.Body).Decode(&item)
-	HandleError(err)
-
-	updateItems := sq.Update("items")
-
-	preInterfacedValues := reflect.ValueOf(item)
-	values = make([]interface{}, preInterfacedValues.NumField())
-	valueTypes = preInterfacedValues.Type()
-
-	for i := 0; i < preInterfacedValues.NumField(); i++ {
-		values[i] = preInterfacedValues.Field(i).Interface()
-	}
-
-	for index, value := range values {
-
-		fieldName = strcase.ToSnake(valueTypes.Field(index).Name)
-
-		if fieldName == "id" {
-			continue
-		}
-
-		var updateValue string
-
-		switch value.(type) {
-		case bool:
-			if value.(bool) {
-				updateValue = "1"
-			} else {
-				updateValue = "0"
-			}
-			break
-		case int:
-			updateValue = strconv.Itoa(value.(int))
-			break
-		case string:
-			updateValue = value.(string)
-			break
-		default:
-			log.Fatal("Unknown type found in JSON")
-		}
-
-		if index == 1 {
-			setValues = updateItems.Set(fieldName, updateValue)
-		} else {
-			setValues = setValues.Set(fieldName, updateValue)
-		}
-
-	}
-
-	whereIDMatches := setValues.Where(sq.Eq{"id": params["id"]})
-
-	_, err = whereIDMatches.RunWith(DB).Query()
-	HandleError(err)
-
-	CreateResponse(w, "item_updated")
-	return
-}
-
-func DeleteItemRecord(w http.ResponseWriter, r *http.Request) {
-
-	params := mux.Vars(r)
-
-	var id = SelectID(params["id"])
-
-	if id == 0 {
-		IDNotFound(w, r)
-		return
-	}
-
-	_, err := DB.Query("DELETE FROM items WHERE id = " + params["id"])
-	HandleError(err)
-
-	CreateResponse(w, "item_deleted")
-
-}
+//func ReadItemRecord(w http.ResponseWriter, r *http.Request) {
+//
+//	params := mux.Vars(r)
+//
+//	var (
+//		item   Item
+//		item_  ItemJSON
+//		items  []Item
+//		items_ []ItemJSON
+//		query  string
+//		scope  = len(params) > 0
+//		err    error
+//	)
+//
+//	query = StringEvaluator(scope,
+//		"SELECT id, name, url, image_url, person, quantity, deleted, completed FROM items WHERE id = "+params["id"]+";",
+//		"SELECT * FROM items WHERE deleted = 0 AND completed = 0;",
+//	)
+//
+//	if scope {
+//
+//		err = DB.Get(&item, query)
+//		HandleError(err)
+//
+//		if item.ID == 0 {
+//			IDNotFound(w, r)
+//			return
+//		}
+//
+//		item_ = ItemJSON{
+//			ID:        item.ID,
+//			Name:      item.Name,
+//			URL:       item.URL,
+//			ImageURL:  item.ImageURL,
+//			Person:    item.Person,
+//			Quantity:  item.Quantity,
+//			Deleted:   item.Deleted,
+//			Completed: item.Completed,
+//		}
+//
+//		err = json.NewEncoder(w).Encode(item_)
+//		HandleError(err)
+//
+//	} else {
+//
+//		if !AnyItems() {
+//			NoItems(w, r)
+//			return
+//		}
+//
+//		err = DB.Select(&items, query)
+//		HandleError(err)
+//
+//		//log.Println(items)
+//
+//		for _, item := range items {
+//			items_ = append(items_, ItemJSON{
+//				ID:        item.ID,
+//				Name:      item.Name,
+//				URL:       item.URL,
+//				ImageURL:  item.ImageURL,
+//				Person:    item.Person,
+//				Quantity:  item.Quantity,
+//				Created:   item.Created,
+//				Deleted:   item.Deleted,
+//				Completed: item.Completed,
+//			})
+//		}
+//
+//		err = json.NewEncoder(w).Encode(items_)
+//		HandleError(err)
+//	}
+//
+//}
+//
+//func UpdateItemRecord(w http.ResponseWriter, r *http.Request) {
+//
+//	params := mux.Vars(r)
+//
+//	var (
+//		id         float32
+//		item       ItemJSON
+//		fieldName  string
+//		values     []interface{}
+//		valueTypes reflect.Type
+//		err        error
+//		setValues  sq.UpdateBuilder
+//	)
+//
+//	if !AnyItems() {
+//		NoItems(w, r)
+//		return
+//	}
+//
+//	id = SelectID(params["id"])
+//
+//	if id == 0 {
+//		IDNotFound(w, r)
+//		return
+//	}
+//
+//	err = json.NewDecoder(r.Body).Decode(&item)
+//	HandleError(err)
+//
+//	updateItems := sq.Update("items")
+//
+//	preInterfacedValues := reflect.ValueOf(item)
+//	values = make([]interface{}, preInterfacedValues.NumField())
+//	valueTypes = preInterfacedValues.Type()
+//
+//	for i := 0; i < preInterfacedValues.NumField(); i++ {
+//		values[i] = preInterfacedValues.Field(i).Interface()
+//	}
+//
+//	for index, value := range values {
+//
+//		fieldName = strcase.ToSnake(valueTypes.Field(index).Name)
+//
+//		if fieldName == "id" {
+//			continue
+//		}
+//
+//		var updateValue string
+//
+//		switch value.(type) {
+//		case bool:
+//			if value.(bool) {
+//				updateValue = "1"
+//			} else {
+//				updateValue = "0"
+//			}
+//			break
+//		case int:
+//			updateValue = strconv.Itoa(value.(int))
+//			break
+//		case string:
+//			updateValue = value.(string)
+//			break
+//		default:
+//			log.Fatal("Unknown type found in JSON")
+//		}
+//
+//		if index == 1 {
+//			setValues = updateItems.Set(fieldName, updateValue)
+//		} else {
+//			setValues = setValues.Set(fieldName, updateValue)
+//		}
+//
+//	}
+//
+//	whereIDMatches := setValues.Where(sq.Eq{"id": params["id"]})
+//
+//	_, err = whereIDMatches.RunWith(DB).Query()
+//	HandleError(err)
+//
+//	CreateResponse(w, "item_updated")
+//	return
+//}
+//
+//func DeleteItemRecord(w http.ResponseWriter, r *http.Request) {
+//
+//	params := mux.Vars(r)
+//
+//	var id = SelectID(params["id"])
+//
+//	if id == 0 {
+//		IDNotFound(w, r)
+//		return
+//	}
+//
+//	_, err := DB.Query("DELETE FROM items WHERE id = " + params["id"])
+//	HandleError(err)
+//
+//	CreateResponse(w, "item_deleted")
+//
+//}
